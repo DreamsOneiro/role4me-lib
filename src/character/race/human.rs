@@ -1,3 +1,4 @@
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum SubHuman {
     Basic,
     Variant,
@@ -22,6 +23,9 @@ impl SubHuman {
         }
     }
 
-    pub fn get_prof(&self) {
+    pub fn get_language(&self) -> Vec<&'static str> {
+        match self {
+            _ => vec!["Common"]
+        }
     }
 }

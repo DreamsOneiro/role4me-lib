@@ -5,46 +5,9 @@ use std::collections::HashSet;
 
 use super::Character;
 pub use human::SubHuman;
-use elf::SubElf;
+pub use elf::SubElf;
 
-macro_rules! clear_ap {
-    ($c:expr) => {
-        $c.str = 0;
-        $c.dex = 0;
-        $c.con = 0;
-        $c.int = 0;
-        $c.wis = 0;
-        $c.cha = 0;
-        $c.available_race_ap = None;
-        $c.usable_ability = HashSet::new();
-    };
-}
-
-macro_rules! assign_race_ap {
-    ($c:expr) => {
-        if $c.used_ability.len() > 0 {
-            if $c.used_ability.contains("str") {
-                $c.str += 1;
-            }
-            if $c.used_ability.contains("dex") {
-                $c.dex += 1;
-            }
-            if $c.used_ability.contains("con") {
-                $c.con += 1;
-            }
-            if $c.used_ability.contains("int") {
-                $c.int += 1;
-            }
-            if $c.used_ability.contains("wis") {
-                $c.wis += 1;
-            }
-            if $c.used_ability.contains("cha") {
-                $c.cha += 1;
-            }
-        }
-    };
-}
-
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Race {
     None,
     Human(SubHuman),
@@ -52,11 +15,47 @@ pub enum Race {
 }
 
 impl Race {
+    pub fn init_ap(c: &mut Character) {
+        let abilities: [&str; 6] = ["str", "dex", "con", "int", "wis", "cha"];
+        let ap = c.race.get_ap();
+        // Clear all points
+        for val in abilities {
+            let score = c.ability_scores.get_mut(val).unwrap();
+            *score = 0;
+        }
+        // Assign points from race
+        for (i, val) in abilities.iter().enumerate() {
+            let score = c.ability_scores.get_mut(*val).unwrap();
+            *score += ap[i];
+        }
+        // Assign points from manual select
+        c.usable_ability = Self::get_usable_ability(ap);
+        c.additional_ap = Some(ap[6]-usize_to_u8(c.used_ability.len()));
+        for val in &c.used_ability {
+            let score = c.ability_scores.get_mut(val).unwrap();
+            *score += 1;
+        }
+    }
+
+    pub fn init_prof(c: &mut Character) {
+        let race_lang: Vec<&str> = match c.race {
+            Self::Human(sub) => sub.get_language(),
+            _ => Vec::new()
+        };
+        if c.profeciency.get_mut("Language") == None {
+            c.profeciency.insert(String::from("Language"), HashSet::new());
+        }
+        let language = c.profeciency.get_mut("Language").unwrap();
+        for lang in &race_lang {
+            language.insert(lang.to_string());
+        }
+    }
+
     fn get_ap(&self) -> [u8; 7] {
         match self {
             Self::None => [0, 0, 0, 0, 0, 0, 0],
             Self::Human(sub) => sub.get_ap(),
-            Self::Elf(_) => [0, 0, 0, 0, 0, 0, 0]
+            Self::Elf(sub) => sub.get_ap()
         }
     }
 
@@ -71,22 +70,8 @@ impl Race {
         }
         available_stat
     }
-
-    pub fn init_ap(c: &mut Character) {
-        clear_ap!(c);
-        let ap: [u8; 7] = c.race.get_ap();
-        let usable_ability = Self::get_usable_ability(ap);
-        assign_race_ap!(c);
-        c.str += ap[0];
-        c.dex += ap[1];
-        c.con += ap[2];
-        c.int += ap[3];
-        c.wis += ap[4];
-        c.cha += ap[5];
-        c.available_race_ap = Some(ap[6]-usize_to_u8(c.used_ability.len()));
-        c.usable_ability = usable_ability;
-    }
 }
+
 
 fn usize_to_u8(num: usize) -> u8 {
     let val: u8 = num.try_into().unwrap();
