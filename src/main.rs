@@ -1,5 +1,4 @@
 use character::Character;
-use character::Race::*;
 use character::race::*;
 
 pub mod character;

@@ -1,11 +1,20 @@
-mod human;
-mod elf;
+pub mod subrace;
 
 use std::collections::HashSet;
-
 use super::Character;
-pub use human::SubHuman;
-pub use elf::SubElf;
+pub use subrace::*;
+pub use Race::*;
+
+macro_rules! race_match {
+    ( $subject:expr, $($race:tt),* ) => {
+        match $subject {
+            Self::None => [0, 0, 0, 0, 0, 0, 0],
+        $(
+            Self::$race(sub) => sub.get_ap(),
+        )*
+        }
+    };
+}
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Race {
@@ -42,7 +51,7 @@ impl Race {
             Self::Human(sub) => sub.get_language(),
             _ => Vec::new()
         };
-        if c.profeciency.get_mut("Language") == None {
+        if c.profeciency.get_mut("Language") == Option::None {
             c.profeciency.insert(String::from("Language"), HashSet::new());
         }
         let language = c.profeciency.get_mut("Language").unwrap();
@@ -52,11 +61,7 @@ impl Race {
     }
 
     fn get_ap(&self) -> [u8; 7] {
-        match self {
-            Self::None => [0, 0, 0, 0, 0, 0, 0],
-            Self::Human(sub) => sub.get_ap(),
-            Self::Elf(sub) => sub.get_ap()
-        }
+        race_match!(self, Human, Elf)
     }
 
     // Return a list of abilities allowed to increase by 1 point
@@ -77,4 +82,3 @@ fn usize_to_u8(num: usize) -> u8 {
     let val: u8 = num.try_into().unwrap();
     val
 }
-
