@@ -7,7 +7,6 @@ mod background;
 
 use std::collections::{HashMap, HashSet};
 
-pub use profeciency::Profeciency;
 pub use race::Race;
 pub use feat::Feat;
 pub use background::Background;
@@ -19,10 +18,13 @@ pub struct Character {
     background: Background,
     usable_ability: HashSet<String>,
     used_ability: HashSet<String>,
+    used_lang: HashSet<String>,
     base_ap: Option<[u8; 6]>,
-    additional_ap: Option<u8>,
+    additional_race_ap: Option<u8>,
+    additoinal_ap: Option<u8>,
     ability_scores: HashMap<String, u8>,
     profeciency: HashMap<String, HashSet<String>>,
+    lang_point: Option<u8>,
     feat_point: u8,
     feat: Feat
 }
@@ -45,21 +47,25 @@ impl Character {
             background: Background::None,
             usable_ability: HashSet::new(),
             used_ability: HashSet::new(),
+            used_lang: HashSet::new(),
             base_ap: None, // Base ap from dice rolls
-            additional_ap: None, // Usable points
+            additional_race_ap: None, // Usable points from race
+            additoinal_ap: None, // Extra usable points
             ability_scores: empty_ap, // Total ability score at the end
             profeciency: empty_prof,
+            lang_point: None,
             feat_point: 0,
             feat: Feat::new()
         }
     }
 
     pub fn print_stat(&self) {
-        if self.additional_ap != None {
-            for (key, value) in &self.ability_scores {
-                print!("[{}: {}]", key, value);
-            }
-            println!("\nRemaining Points: {}", self.additional_ap.unwrap());
+        if self.additional_race_ap != None {
+            println!("[STR: {}],[DEX: {}],[CON: {}],[INT: {}],[WIS: {}],[CHA: {}]",
+            &self.ability_scores.get("str").unwrap(), &self.ability_scores.get("dex").unwrap(),
+            &self.ability_scores.get("con").unwrap(), &self.ability_scores.get("int").unwrap(),
+            &self.ability_scores.get("wis").unwrap(), &self.ability_scores.get("cha").unwrap());
+            println!("Remaining Points: {}", self.additional_race_ap.unwrap());
             let languages = self.profeciency.get("Language");
             if languages != None {
                 print!("Language: ");
@@ -68,6 +74,10 @@ impl Character {
                 }
                 print!("\n")
             }
+            if self.lang_point != None {
+                println!("Langauge Point: {}", self.lang_point.unwrap());
+            }
+            print!("\n")
         }
     }
 
@@ -83,8 +93,8 @@ impl Character {
 
     pub fn use_race_ap_5e(&mut self, ap: &str) {
         if self.edition == "5e" {
-            if self.additional_ap != None {
-                let points = self.additional_ap.unwrap();
+            if self.additional_race_ap != None {
+                let points = self.additional_race_ap.unwrap();
                 if (points > 0) & (self.usable_ability.contains(ap)) {
                     self.used_ability.insert(ap.to_string());
                 }
@@ -106,5 +116,32 @@ impl Character {
             self.used_ability = HashSet::new();
             Race::init_ap(self);
         }
+    }
+
+    pub fn use_lang_point_5e(&mut self, lang: &str) {
+        if self.lang_point != None {
+            let point = self.lang_point.unwrap();
+            if point > 0 {
+                let lang_handler = self.profeciency.get_mut("Language").unwrap();
+                if (!lang_handler.contains(lang)) & (!self.used_lang.contains(lang)) {
+                    lang_handler.insert(lang.to_string());
+                    self.used_lang.insert(lang.to_string());
+                    self.lang_point = Some(point-1);
+                }
+            }
+        }
+    }
+
+    pub fn remove_lang_5e(&mut self, lang: &str) {
+        if self.used_lang.contains(lang) {
+            let lang_handler = self.profeciency.get_mut("Language").unwrap();
+            if lang_handler.remove(lang) {
+                self.lang_point = Some(self.lang_point.unwrap()+1);
+            }
+        }
+    }
+
+    pub fn clear_lang_5e(&mut self) {
+        Race::init_lang(self);
     }
 }

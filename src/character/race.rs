@@ -5,14 +5,23 @@ use super::Character;
 pub use subrace::*;
 pub use Race::*;
 
-macro_rules! race_match {
-    ( $subject:expr, $($race:tt),* ) => {
+
+macro_rules! race_match_base {
+    ( $subject:expr, $none:expr, $method:ident, $($race:tt),* ) => {
         match $subject {
-            Self::None => [0, 0, 0, 0, 0, 0, 0],
+            Self::None => $none,
         $(
-            Self::$race(sub) => sub.get_ap(),
+            Self::$race(sub) => sub.$method(),
         )*
         }
+    };
+}
+
+macro_rules! race_match_all {
+    ($subject:expr, $none:expr, $method:ident) => {
+        race_match_base!($subject, $none, $method,
+            Human, Elf
+        )
     };
 }
 
@@ -24,6 +33,9 @@ pub enum Race {
 }
 
 impl Race {
+// ----------------------
+// |   Public Funtion   |
+// ----------------------
     pub fn init_ap(c: &mut Character) {
         let abilities: [&str; 6] = ["str", "dex", "con", "int", "wis", "cha"];
         let ap = c.race.get_ap();
@@ -39,7 +51,7 @@ impl Race {
         }
         // Assign points from manual select
         c.usable_ability = Self::get_usable_ability(ap);
-        c.additional_ap = Some(ap[6]-usize_to_u8(c.used_ability.len()));
+        c.additional_race_ap = Some(ap[6]-usize_to_u8(c.used_ability.len()));
         for val in &c.used_ability {
             let score = c.ability_scores.get_mut(val).unwrap();
             *score += 1;
@@ -47,21 +59,38 @@ impl Race {
     }
 
     pub fn init_prof(c: &mut Character) {
-        let race_lang: Vec<&str> = match c.race {
-            Self::Human(sub) => sub.get_language(),
-            _ => Vec::new()
-        };
-        if c.profeciency.get_mut("Language") == Option::None {
-            c.profeciency.insert(String::from("Language"), HashSet::new());
-        }
-        let language = c.profeciency.get_mut("Language").unwrap();
+        Self::init_lang(c);
+    }
+
+    pub fn init_lang(c: &mut Character) {
+        // Clear all language
+        c.profeciency.insert("Language".to_string(), HashSet::new());
+        c.used_lang = HashSet::new();
+        // Get Language Profeciency
+        let race_lang = c.race.get_language();
+        let handler = c.profeciency.get_mut("Language").unwrap();
         for lang in &race_lang {
-            language.insert(lang.to_string());
+            handler.insert(lang.to_string());
+        }
+        let point = c.race.get_lang_point();
+        if point > 0 {
+            c.lang_point = Some(point);
         }
     }
 
+// -----------------------
+// |   Private Funtion   |
+// -----------------------
+    fn get_language(&self) -> Vec<&str> {
+        race_match_all!(self, Vec::new(), get_language)
+    }
+
     fn get_ap(&self) -> [u8; 7] {
-        race_match!(self, Human, Elf)
+        race_match_all!(self, [0,0,0,0,0,0,0], get_ap)
+    }
+    
+    fn get_lang_point(&self) -> u8 {
+        race_match_all!(self, 0, get_lang_point)
     }
 
     // Return a list of abilities allowed to increase by 1 point
