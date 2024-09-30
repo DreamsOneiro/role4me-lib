@@ -11,6 +11,8 @@ pub use race::Race;
 pub use feat::Feat;
 pub use background::Background;
 
+use crate::SubRace;
+
 pub struct Character {
     edition: String,
     race: Race,
@@ -26,7 +28,10 @@ pub struct Character {
     profeciency: HashMap<String, HashSet<String>>,
     lang_point: Option<u8>,
     feat_point: u8,
-    feat: Feat
+    feat: Feat,
+    speed: u8,
+    size: String,
+    buffer: Option<SubRace>
 }
 
 impl Character {
@@ -42,7 +47,7 @@ impl Character {
         empty_prof.insert(String::from("Language"), HashSet::new());
         Character {
             edition: String::from("5e"),
-            race: Race::None,
+            race: Race::Undefined,
             class: class::Class::None,
             background: Background::None,
             usable_ability: HashSet::new(),
@@ -55,7 +60,10 @@ impl Character {
             profeciency: empty_prof,
             lang_point: None,
             feat_point: 0,
-            feat: Feat::new()
+            feat: Feat::new(),
+            speed: 0,
+            size: "Unknown".to_string(),
+            buffer: None
         }
     }
 
@@ -65,8 +73,12 @@ impl Character {
             &self.ability_scores.get("str").unwrap(), &self.ability_scores.get("dex").unwrap(),
             &self.ability_scores.get("con").unwrap(), &self.ability_scores.get("int").unwrap(),
             &self.ability_scores.get("wis").unwrap(), &self.ability_scores.get("cha").unwrap());
-            println!("Remaining Points: {}", self.additional_race_ap.unwrap());
+            if self.additional_race_ap.unwrap() > 0 {
+                println!("Remaining Points: {}", self.additional_race_ap.unwrap());
+            }
             let languages = self.profeciency.get("Language");
+            let weapons = self.profeciency.get("Weapon");
+            let skills = self.profeciency.get("Skill");
             if languages != None {
                 print!("Language: ");
                 for lang in languages.unwrap() {
@@ -77,7 +89,30 @@ impl Character {
             if self.lang_point != None {
                 println!("Langauge Point: {}", self.lang_point.unwrap());
             }
-            print!("\n")
+            if weapons != None {
+                print!("Weapons: ");
+                if weapons.unwrap().len() != 0 {
+                    for weapon in weapons.unwrap() {
+                        print!("{} ", weapon);
+                    }
+                } else {
+                    print!("None");
+                }
+            }
+            print!("\n");
+            if skills != None {
+                print!("Skills: ");
+                if skills.unwrap().len() != 0 {
+                    for skill in skills.unwrap() {
+                        print!("{} ", skill);
+                    }
+                } else {
+                    print!("None");
+                }
+            }
+            print!("\n");
+            println!("Speed: {}", self.speed);
+            println!("Size: {}\n", self.size);
         }
     }
 
@@ -86,6 +121,7 @@ impl Character {
             // Clear used AP
             self.used_ability = HashSet::new();
             self.race = new_race;
+            Race::init_buffer(self);
             Race::init_ap(self);
             Race::init_prof(self);
         }

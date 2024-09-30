@@ -9,7 +9,7 @@ pub use Race::*;
 macro_rules! race_match_base {
     ( $subject:expr, $none:expr, $method:ident, $($race:tt),* ) => {
         match $subject {
-            Self::None => $none,
+            Self::Undefined => $none,
         $(
             Self::$race(sub) => sub.$method(),
         )*
@@ -20,25 +20,30 @@ macro_rules! race_match_base {
 macro_rules! race_match_all {
     ($subject:expr, $none:expr, $method:ident) => {
         race_match_base!($subject, $none, $method,
-            Human, Elf
+            Human, Elf, Dwarf
         )
     };
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Race {
-    None,
+    Undefined,
     Human(SubHuman),
     Elf(SubElf),
+    Dwarf(SubDwarf),
 }
 
 impl Race {
 // ----------------------
 // |   Public Funtion   |
 // ----------------------
+    pub fn init_buffer(c: &mut Character) {
+        c.buffer = c.race.get_buff();
+    }
+
     pub fn init_ap(c: &mut Character) {
         let abilities: [&str; 6] = ["str", "dex", "con", "int", "wis", "cha"];
-        let ap = c.race.get_ap();
+        let ap = c.buffer.as_mut().unwrap().get_ap();
         // Clear all points
         for val in abilities {
             let score = c.ability_scores.get_mut(val).unwrap();
@@ -60,37 +65,64 @@ impl Race {
 
     pub fn init_prof(c: &mut Character) {
         Self::init_lang(c);
+        Self::init_weap(c);
+        Self::init_skill(c);
+        Self::init_speed(c);
+        Self::init_size(c);
     }
 
     pub fn init_lang(c: &mut Character) {
         // Clear all language
         c.profeciency.insert("Language".to_string(), HashSet::new());
         c.used_lang = HashSet::new();
+        c.lang_point = None;
         // Get Language Profeciency
-        let race_lang = c.race.get_language();
-        let handler = c.profeciency.get_mut("Language").unwrap();
+        let race_lang = c.buffer.as_mut().unwrap().get_lang();
+        let handle = c.profeciency.get_mut("Language").unwrap();
         for lang in &race_lang {
-            handler.insert(lang.to_string());
+            handle.insert(lang.to_string());
         }
-        let point = c.race.get_lang_point();
+        let point = c.buffer.as_mut().unwrap().get_lang_point();
         if point > 0 {
             c.lang_point = Some(point);
         }
     }
 
+    pub fn init_weap(c: &mut Character) {
+        // Clear all weapons
+        c.profeciency.insert("Weapon".to_string(), HashSet::new());
+        // Get Weapon Profeciency
+        let race_weap = c.buffer.as_mut().unwrap().get_weap();
+        let handle = c.profeciency.get_mut("Weapon").unwrap();
+        for weap in race_weap {
+            handle.insert(weap.to_string());
+        }
+    }
+
+    pub fn init_skill(c: &mut Character) {
+        // Clear all skills
+        c.profeciency.insert("Skill".to_string(), HashSet::new());
+        // Get Skill Profeciencies
+        let race_skill = c.buffer.as_mut().unwrap().get_skill();
+        let handle = c.profeciency.get_mut("Skill").unwrap();
+        for skill in race_skill {
+            handle.insert(skill.to_string());
+        }
+    }
+
+    pub fn init_speed(c: &mut Character) {
+        c.speed = c.buffer.as_mut().unwrap().get_speed();
+    }
+
+    pub fn init_size(c: &mut Character) {
+        c.size = c.buffer.as_mut().unwrap().get_size().to_string();
+    }
+
 // -----------------------
 // |   Private Funtion   |
 // -----------------------
-    fn get_language(&self) -> Vec<&str> {
-        race_match_all!(self, Vec::new(), get_language)
-    }
-
-    fn get_ap(&self) -> [u8; 7] {
-        race_match_all!(self, [0,0,0,0,0,0,0], get_ap)
-    }
-    
-    fn get_lang_point(&self) -> u8 {
-        race_match_all!(self, 0, get_lang_point)
+    fn get_buff(&self) -> Option<SubRace> {
+        race_match_all!(self, None, handle)
     }
 
     // Return a list of abilities allowed to increase by 1 point
