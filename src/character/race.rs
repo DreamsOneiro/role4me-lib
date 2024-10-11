@@ -1,5 +1,6 @@
 pub mod subrace;
 
+use core::panic;
 use std::collections::HashSet;
 use super::Character;
 pub use subrace::*;
@@ -42,30 +43,26 @@ impl Race {
     }
 
     pub fn init_ap(c: &mut Character) {
-        let abilities: [&str; 6] = ["str", "dex", "con", "int", "wis", "cha"];
-        let ap = c.buffer.as_mut().unwrap().get_ap();
-        // Clear all points
-        for val in abilities {
-            let score = c.ability_scores.get_mut(val).unwrap();
-            *score = 0;
-        }
+        let race_ap = c.buffer.as_mut().unwrap().get_ap();
+        // Clear all pointj
+        c.ability_scores = [0,0,0,0,0,0];
         // Assign points from race
-        for (i, val) in abilities.iter().enumerate() {
-            let score = c.ability_scores.get_mut(*val).unwrap();
-            *score += ap[i];
+        for i in 0..6 {
+            c.ability_scores[i] = race_ap[i];
         }
         // Assign points from manual select
-        c.usable_ability = Self::get_usable_ability(ap);
-        c.additional_race_ap = Some(ap[6]-usize_to_u8(c.used_ability.len()));
+        c.usable_ability = Self::get_usable_ability(race_ap);
+        c.additional_race_ap = Some(race_ap[6]-usize_to_u8(c.used_ability.len()));
         for val in &c.used_ability {
-            let score = c.ability_scores.get_mut(val).unwrap();
-            *score += 1;
+            let index = Self::get_usable_abiltiy_index(val);
+            c.ability_scores[index] += 1;
         }
     }
 
     pub fn init_prof(c: &mut Character) {
         Self::init_lang(c);
         Self::init_weap(c);
+        Self::init_armor(c);
         Self::init_skill(c);
         Self::init_speed(c);
         Self::init_size(c);
@@ -96,6 +93,17 @@ impl Race {
         let handle = c.profeciency.get_mut("Weapon").unwrap();
         for weap in race_weap {
             handle.insert(weap.to_string());
+        }
+    }
+
+    pub fn init_armor(c: &mut Character) {
+        // Clear all armors
+        c.profeciency.insert("Armor".to_string(), HashSet::new());
+        // Get Armor Profeciency
+        let race_armor = c.buffer.as_mut().unwrap().get_armor();
+        let handle = c.profeciency.get_mut("Armor").unwrap();
+        for armor in race_armor {
+            handle.insert(armor.to_string());
         }
     }
 
@@ -135,6 +143,19 @@ impl Race {
             }
         }
         available_stat
+    }
+
+    fn get_usable_abiltiy_index(ap: &str) -> usize {
+        let abilities = [
+            "str", "dex", "con",
+            "int", "wis", "cha"
+        ];
+        for (i, ability) in abilities.iter().enumerate() {
+            if ap.to_lowercase() == *ability {
+                return i;
+            }
+        }
+        panic!();
     }
 }
 

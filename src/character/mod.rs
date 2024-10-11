@@ -13,8 +13,30 @@ pub use background::Background;
 
 use crate::SubRace;
 
+macro_rules! check_edition_5e {
+    ($self:expr) => {
+        if !$self.edition.is_5e() {
+            return false;
+        }
+    };
+}
+
+pub enum Edition {
+    FifthEdition,
+    DnDOne
+}
+
+impl Edition {
+    fn is_5e(&self) -> bool {
+        match self {
+            Self::FifthEdition => true,
+            _ => false
+        }
+    }
+}
+
 pub struct Character {
-    edition: String,
+    edition: Edition,
     race: Race,
     class: class::Class,
     background: Background,
@@ -24,7 +46,7 @@ pub struct Character {
     base_ap: Option<[u8; 6]>,
     additional_race_ap: Option<u8>,
     additoinal_ap: Option<u8>,
-    ability_scores: HashMap<String, u8>,
+    ability_scores: [u8; 6],
     profeciency: HashMap<String, HashSet<String>>,
     lang_point: Option<u8>,
     feat_point: u8,
@@ -36,27 +58,19 @@ pub struct Character {
 
 impl Character {
     pub fn new_5e() -> Character {
-        let mut empty_ap: HashMap<String, u8> = HashMap::new();
-        empty_ap.insert(String::from("str"), 0);
-        empty_ap.insert(String::from("dex"), 0);
-        empty_ap.insert(String::from("con"), 0);
-        empty_ap.insert(String::from("int"), 0);
-        empty_ap.insert(String::from("wis"), 0);
-        empty_ap.insert(String::from("cha"), 0);
-        let mut empty_prof: HashMap<String, HashSet<String>> = HashMap::new();
-        empty_prof.insert(String::from("Language"), HashSet::new());
+        let empty_prof: HashMap<String, HashSet<String>> = HashMap::new();
         Character {
-            edition: String::from("5e"),
+            edition: Edition::FifthEdition,
             race: Race::Undefined,
             class: class::Class::None,
             background: Background::None,
             usable_ability: HashSet::new(),
             used_ability: HashSet::new(),
             used_lang: HashSet::new(),
-            base_ap: None, // Base ap from dice rolls
+            base_ap: None, // Base ap from dice rolls or point buy
             additional_race_ap: None, // Usable points from race
             additoinal_ap: None, // Extra usable points
-            ability_scores: empty_ap, // Total ability score at the end
+            ability_scores: [0,0,0,0,0,0], // Total ability score at the end
             profeciency: empty_prof,
             lang_point: None,
             feat_point: 0,
@@ -70,14 +84,14 @@ impl Character {
     pub fn print_stat(&self) {
         if self.additional_race_ap != None {
             println!("[STR: {}],[DEX: {}],[CON: {}],[INT: {}],[WIS: {}],[CHA: {}]",
-            &self.ability_scores.get("str").unwrap(), &self.ability_scores.get("dex").unwrap(),
-            &self.ability_scores.get("con").unwrap(), &self.ability_scores.get("int").unwrap(),
-            &self.ability_scores.get("wis").unwrap(), &self.ability_scores.get("cha").unwrap());
+            self.ability_scores[0], self.ability_scores[1], self.ability_scores[2],
+            self.ability_scores[3], self.ability_scores[4], self.ability_scores[5]);
             if self.additional_race_ap.unwrap() > 0 {
                 println!("Remaining Points: {}", self.additional_race_ap.unwrap());
             }
             let languages = self.profeciency.get("Language");
             let weapons = self.profeciency.get("Weapon");
+            let armors = self.profeciency.get("Armor");
             let skills = self.profeciency.get("Skill");
             if languages != None {
                 print!("Language: ");
@@ -100,6 +114,17 @@ impl Character {
                 }
             }
             print!("\n");
+            if armors != None {
+                print!("Armors: ");
+                if armors.unwrap().len() != 0 {
+                    for armor in armors.unwrap() {
+                        print!("{} ", armor);
+                    }
+                } else {
+                    print!("None");
+                }
+            }
+            print!("\n");
             if skills != None {
                 print!("Skills: ");
                 if skills.unwrap().len() != 0 {
@@ -116,68 +141,91 @@ impl Character {
         }
     }
 
-    pub fn select_race_5e(&mut self, new_race: Race) {
-        if self.edition == "5e" {
-            // Clear used AP
-            self.used_ability = HashSet::new();
-            self.race = new_race;
-            Race::init_buffer(self);
-            Race::init_ap(self);
-            Race::init_prof(self);
-        }
+    pub fn select_race_5e(&mut self, new_race: Race) -> bool {
+        check_edition_5e!(self);
+        // Clear used AP
+        self.race = new_race;
+        self.used_ability = HashSet::new();
+        Race::init_buffer(self);
+        Race::init_ap(self);
+        Race::init_prof(self);
+        true
     }
 
-    pub fn use_race_ap_5e(&mut self, ap: &str) {
-        if self.edition == "5e" {
-            if self.additional_race_ap != None {
-                let points = self.additional_race_ap.unwrap();
-                if (points > 0) & (self.usable_ability.contains(ap)) {
-                    self.used_ability.insert(ap.to_string());
+    // Return true only if succesffuly added point
+    pub fn use_race_ap_5e(&mut self, ap: &str) -> bool {
+        check_edition_5e!(self);
+        let mut check: bool = false;
+        if self.additional_race_ap != None {
+            let points = self.additional_race_ap.unwrap();
+            if (points > 0) & (self.usable_ability.contains(ap)) {
+                if self.used_ability.insert(ap.to_string()) {
+                    check = true;
                 }
             }
+        }
+        Race::init_ap(self);
+        check
+    }
+
+    // Return true only if successfully remove point
+    pub fn remove_race_ap_5e(&mut self, ap: &str) -> bool {
+        check_edition_5e!(self);
+        if self.used_ability.remove(ap) {
             Race::init_ap(self);
+            return true;
         }
+        false
     }
 
-    pub fn remove_race_ap_5e(&mut self, ap: &str) {
-        if self.edition == "5e" {
-            if self.used_ability.remove(ap) {
-                Race::init_ap(self);
-            }
-        }
+    pub fn clear_race_ap_5e(&mut self) -> bool {
+        check_edition_5e!(self);
+        self.used_ability = HashSet::new();
+        Race::init_ap(self);
+        true
     }
 
-    pub fn clear_race_ap_5e(&mut self) {
-        if self.edition == "5e" {
-            self.used_ability = HashSet::new();
-            Race::init_ap(self);
-        }
-    }
-
-    pub fn use_lang_point_5e(&mut self, lang: &str) {
+    // Return true only if succesffuly added point
+    pub fn use_lang_point_5e(&mut self, lang: &str) -> bool {
+        check_edition_5e!(self);
         if self.lang_point != None {
             let point = self.lang_point.unwrap();
             if point > 0 {
-                let lang_handler = self.profeciency.get_mut("Language").unwrap();
-                if (!lang_handler.contains(lang)) & (!self.used_lang.contains(lang)) {
-                    lang_handler.insert(lang.to_string());
-                    self.used_lang.insert(lang.to_string());
-                    self.lang_point = Some(point-1);
+                let lang_handle = self.profeciency.get_mut("Language").unwrap();
+                if !self.used_lang.contains(lang) {
+                    if lang_handle.insert(lang.to_string()) {
+                        self.used_lang.insert(lang.to_string());
+                        self.lang_point = Some(point-1);
+                        return true;
+                    }
+                    
                 }
             }
         }
+        false
     }
 
-    pub fn remove_lang_5e(&mut self, lang: &str) {
+    // Return true only if successfully remove point
+    pub fn remove_lang_5e(&mut self, lang: &str) -> bool {
+        check_edition_5e!(self);
         if self.used_lang.contains(lang) {
-            let lang_handler = self.profeciency.get_mut("Language").unwrap();
-            if lang_handler.remove(lang) {
+            let lang_handle = self.profeciency.get_mut("Language").unwrap();
+            if lang_handle.remove(lang) {
                 self.lang_point = Some(self.lang_point.unwrap()+1);
+                return true;
             }
         }
+        false
     }
 
-    pub fn clear_lang_5e(&mut self) {
+    pub fn clear_lang_5e(&mut self) -> bool {
+        check_edition_5e!(self);
         Race::init_lang(self);
+        true
+    }
+
+    pub fn select_class_5e(&mut self) -> bool {
+        check_edition_5e!(self);
+        false
     }
 }
