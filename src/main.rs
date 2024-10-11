@@ -4,19 +4,11 @@ use character::race::*;
 pub mod character;
 
 fn main() {
-    let mut some_char = Character::new_5e();
-    some_char.select_race_5e(Human(SubHuman::Variant));
-    some_char.print_stat();
-    let val = some_char.use_lang_point_5e("Ethernal");
-    some_char.print_stat();
-    println!("{val}");
-    let val = some_char.use_lang_point_5e("Ethernal");
-    some_char.print_stat();
-    println!("{val}");
-    let val = some_char.use_race_ap_5e("str");
-    some_char.print_stat();
-    println!("{val}");
-    let val = some_char.use_race_ap_5e("str");
-    some_char.print_stat();
-    println!("{val}");
+    let mut oneiro = Character::new_5e();
+    oneiro.use_point_buy_5e([0,7,5,9,4,2]);
+    oneiro.select_race_5e(Human(SubHuman::Variant));
+    oneiro.use_race_ap_5e("int");
+    oneiro.use_race_ap_5e("con");
+    oneiro.init_base_point();
+    oneiro.print_stat();
 }

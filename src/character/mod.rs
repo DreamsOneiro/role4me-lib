@@ -4,6 +4,7 @@ mod profeciency;
 mod class;
 mod feat;
 mod background;
+mod ability;
 
 use std::collections::{HashMap, HashSet};
 
@@ -37,22 +38,23 @@ impl Edition {
 
 pub struct Character {
     edition: Edition,
-    race: Race,
-    class: class::Class,
-    background: Background,
-    usable_ability: HashSet<String>,
+    pub race: Race,
+    pub class: class::Class,
+    pub background: Background,
+    pub usable_ability: HashSet<String>,
     used_ability: HashSet<String>,
     used_lang: HashSet<String>,
-    base_ap: Option<[u8; 6]>,
-    additional_race_ap: Option<u8>,
-    additoinal_ap: Option<u8>,
-    ability_scores: [u8; 6],
-    profeciency: HashMap<String, HashSet<String>>,
-    lang_point: Option<u8>,
-    feat_point: u8,
-    feat: Feat,
-    speed: u8,
-    size: String,
+    pub base_ap: Option<[u8; 6]>, // Base ap from dice rolls or point buy
+    pub additional_race_ap: Option<u8>, // Usable points from race
+    pub unassigned_base_ap: [u8; 6], // Store stats from rolls or point buy
+    pub additoinal_ap: Option<u8>, // Usable points from feat
+    pub ability_scores: [u8; 6], // Total ability score at the end
+    pub profeciency: HashMap<String, HashSet<String>>,
+    pub lang_point: Option<u8>,
+    pub feat_point: u8,
+    pub feat: Feat,
+    pub speed: u8,
+    pub size: String,
     buffer: Option<SubRace>
 }
 
@@ -67,10 +69,11 @@ impl Character {
             usable_ability: HashSet::new(),
             used_ability: HashSet::new(),
             used_lang: HashSet::new(),
-            base_ap: None, // Base ap from dice rolls or point buy
-            additional_race_ap: None, // Usable points from race
-            additoinal_ap: None, // Extra usable points
-            ability_scores: [0,0,0,0,0,0], // Total ability score at the end
+            base_ap: None,
+            additional_race_ap: None,
+            unassigned_base_ap: [0,0,0,0,0,0],
+            additoinal_ap: None,
+            ability_scores: [0,0,0,0,0,0],
             profeciency: empty_prof,
             lang_point: None,
             feat_point: 0,
@@ -224,8 +227,77 @@ impl Character {
         true
     }
 
-    pub fn select_class_5e(&mut self) -> bool {
+    pub fn roll_stats_5e(&mut self) -> bool {
         check_edition_5e!(self);
+        ability::roll_dice(self);
+        true
+    }
+
+    pub fn use_standard_array_5e(&mut self) -> bool {
+        check_edition_5e!(self);
+        self.unassigned_base_ap = [15,14,13,12,10,8];
+        true
+    }
+
+    pub fn use_heroic_array_5e(&mut self) -> bool {
+        check_edition_5e!(self);
+        self.unassigned_base_ap = [17,16,15,14,12,10];
+        true
+    }
+
+    // Pass in array for points, valued between 0 to 9
+    // 6 & 8 are not allowed (refer to rule book)
+    // i.e. [1,5,7,9,3,2] 
+    pub fn use_point_buy_5e(&mut self, points: [u8; 6]) -> bool {
+        // Remove points created from other method
+        self.unassigned_base_ap = [0,0,0,0,0,0];
+        let mut sum: u8 = 0;
+        for point in points {
+            if (point > 9) || (point == 6) || (point == 8) {return false;}
+            sum += point;
+        } if sum > 27 {
+            return false;
+        }
+        self.base_ap = Some(ability::calculate_point_buy(points));
+        true
+    }
+
+    pub fn init_base_point(&mut self) {
+        for i in 0..6 {
+            self.ability_scores[i] += self.base_ap.unwrap()[i];
+        }
+    }
+
+    // Pass in sequence to assign ap from 1 to 6
+    // i.e [2,5,1,3,4,6]
+    pub fn assign_rolls_5e(&mut self, rolls: [u8; 6]) -> bool {
+        check_edition_5e!(self);
+        if self.unassigned_base_ap[0] != 0 {
+            let mut rolls_set: HashSet<u8> = HashSet::new();
+            for i in rolls {
+                if (i == 0) || (i > 6) {
+                    return false;
+                }
+                rolls_set.insert(i);
+            }
+            if rolls_set.len() == 6 {
+                let i1: usize = rolls[0].into();
+                let i2: usize = rolls[1].into();
+                let i3: usize = rolls[2].into();
+                let i4: usize = rolls[3].into();
+                let i5: usize = rolls[4].into();
+                let i6: usize = rolls[5].into();
+                self.base_ap = Some([
+                    self.unassigned_base_ap[i1-1],
+                    self.unassigned_base_ap[i2-1],
+                    self.unassigned_base_ap[i3-1],
+                    self.unassigned_base_ap[i4-1],
+                    self.unassigned_base_ap[i5-1],
+                    self.unassigned_base_ap[i6-1],
+                ]);
+                return true;
+            }
+        }
         false
     }
 }
