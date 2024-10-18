@@ -43,19 +43,22 @@ impl Race {
     }
 
     pub fn init_ap(c: &mut Character) {
-        let race_ap = c.buffer.as_mut().unwrap().get_ap();
-        // Clear all pointj
+        // Clear all point
         c.ability_scores = [0,0,0,0,0,0];
-        // Assign points from race
-        for i in 0..6 {
-            c.ability_scores[i] = race_ap[i];
-        }
-        // Assign points from manual select
-        c.usable_ability = Self::get_usable_ability(race_ap);
-        c.additional_race_ap = Some(race_ap[6]-usize_to_u8(c.used_ability.len()));
-        for val in &c.used_ability {
-            let index = Self::get_usable_abiltiy_index(val);
-            c.ability_scores[index] += 1;
+        // Check if race is undefined
+        if c.race != Race::Undefined {
+            // Assign points from race
+            let race_ap = c.buffer.as_mut().unwrap().get_ap();
+            for i in 0..6 {
+                c.ability_scores[i] = race_ap[i];
+            }
+            // Assign points from manual select
+            c.usable_ability = Self::get_usable_ability(race_ap);
+            c.additional_race_ap = Some(race_ap[6]-usize_to_u8(c.used_ability.len()));
+            for val in &c.used_ability {
+                let index = Self::get_usable_abiltiy_index(val);
+                c.ability_scores[index] += 1;
+            }
         }
     }
 
