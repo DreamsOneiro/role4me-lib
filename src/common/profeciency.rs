@@ -49,10 +49,14 @@ define_enum!(Language {
 });
 
 define_enum!(Weapon {
-    Longsword, Shortsword, Shortbow, Longbow,
-    Spear, Trident, LightCrossbow, Net,
-    Rapier, HandCrossbow, Battleaxe, Handaxe,
-    LightHammer, Warhammer
+    Club, Dagger, Greatclub, Handaxe, Javelin,
+    LightHammer, Mace, Quaterstaff, Sickle, Spear, 
+    LightCrossbow, Dart, Shortbow, Sling,
+    Battleaxe, Flail, Glaive, Greataxe, Greatsword,
+    Halberd, Lance, Longsword, Maul, Morningstar,
+    Pike, Rapier, Scimitar, Shortsword, Trident,
+    WarPick, Warhammer, Whip, Blowgun, HandCrossbow,
+    HeavyCrossbow, Longbow, Net
 });
 
 define_enum!(Skill {
@@ -64,5 +68,9 @@ define_enum!(Skill {
 });
 
 define_enum!(Armor {
-    Light, Medium, Heavy
+    Light, Medium, Heavy, Shield
+});
+
+define_enum!(Tools {
+    TheivesTools, TinkersTools
 });

@@ -1,6 +1,5 @@
-use crate::common::{Stat, Race, first_letter_uppercase};
-
-use super::{Language::*, Weapon::*, Skill::*, Armor, Size};
+use crate::common::{Stat, Race, Size, first_letter_uppercase};
+use crate::common::profeciency::{Language::*, Weapon::*, Skill::*, Armor};
 
 /* ---------
    | Macro |

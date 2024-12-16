@@ -1,11 +1,12 @@
 #![allow(dead_code)]
 pub mod race;
+mod class;
 mod tests;
 
 use std::{collections::{BTreeSet, HashSet}, fmt::Debug};
-use crate::common::{Race, Edition, Stat, dice};
-pub use race::*;
-pub use crate::common::{AP, Size, profeciency::*};
+use crate::common::{AP, Edition, Race, Stat, Size, dice};
+use crate::common::profeciency::{Language, Weapon, Armor, Skill};
+use race::*;
 
 pub struct Character<'a> {
     edition: Edition,
@@ -67,11 +68,11 @@ impl<'a> Character<'a> {
     ///
     /// let mut player = ed_5::Character::build();
     ///
-    /// player.select_race(ed_5::Human::Variant);
+    /// player.race_select(ed_5::Human::Variant);
     /// ```
     /// ------------------------------------------------
     /// Refer to `role4me_lib::ed_5::race` for race enums
-    pub fn select_race<T: Race + 'a>(&mut self, race: T) -> &mut Self {
+    pub fn race_select<T: Race + 'a>(&mut self, race: T) -> &mut Self {
         if race.as_string() != self.race.as_string() {
             self.race = Box::new(race);
             self.buffer_race = Some(self.race.get_stat());
@@ -98,17 +99,18 @@ impl<'a> Character<'a> {
     ///
     /// Example:
     /// ```
-    /// use role4me_lib::ed_5::{self, AP};
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
     ///
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_point(AP::INT);
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_ap(AP::INT);
     ///
-    /// assert_eq!(player.check_score(AP::INT), 1);
+    /// assert_eq!(player.get_ability_score(AP::INT), 1);
     /// ```
-    pub fn use_race_point(&mut self, ability: AP) -> &mut Self {
+    pub fn race_use_ap(&mut self, ability: AP) -> &mut Self {
         if self.race_usable_ap > 0 {
             if self.race_used_ability.insert(ability) {
                 self.init_race_ap();
@@ -121,18 +123,19 @@ impl<'a> Character<'a> {
     ///
     /// Example:
     /// ```
-    /// use role4me_lib::ed_5::{self, AP};
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
     ///
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_point(AP::INT)
-    ///     .remove_race_point(AP::INT);
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_ap(AP::INT)
+    ///     .race_remove_ap(AP::INT);
     ///
-    /// assert_eq!(player.check_score(AP::INT), 0);
+    /// assert_eq!(player.get_ability_score(AP::INT), 0);
     /// ```
-    pub fn remove_race_point(&mut self, ability: AP) -> &mut Self {
+    pub fn race_remove_ap(&mut self, ability: AP) -> &mut Self {
         if self.race_used_ability.remove(&ability) {
             self.init_race_ap();
         }
@@ -143,87 +146,44 @@ impl<'a> Character<'a> {
     ///
     /// Example:
     /// ```
-    /// use role4me_lib::ed_5::{self, AP};
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
     ///
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_point(AP::INT)
-    ///     .use_race_point(AP::STR);
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_ap(AP::INT)
+    ///     .race_use_ap(AP::STR);
     ///
-    /// assert_eq!(player.check_all_scores(), [1,0,0,1,0,0]);
+    /// assert_eq!(player.get_all_ability_score(), [1,0,0,1,0,0]);
     ///
-    /// player.clear_race_points();
+    /// player.race_clear_ap();
     ///
-    /// assert_eq!(player.check_all_scores(), [0,0,0,0,0,0]);
+    /// assert_eq!(player.get_all_ability_score(), [0,0,0,0,0,0]);
     /// ```
-    pub fn clear_race_points(&mut self) -> &mut Self {
+    pub fn race_clear_ap(&mut self) -> &mut Self {
         self.race_used_ability = HashSet::new();
         self.init_race_ap();
         self
-    }
-
-    /// Return value of current ability score
-    ///
-    /// Example:
-    /// ```
-    /// use role4me_lib::ed_5::{self, AP};
-    ///
-    /// let mut player = ed_5::Character::build();
-    ///
-    /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_point(AP::INT);
-    ///
-    /// let val = player.check_score(AP::INT);
-    ///
-    /// assert_eq!(val, 1);
-    /// ```
-    pub fn check_score(&self, ap: AP) -> usize {
-        let scores = self.check_all_scores();
-        scores[ap.get_index()]
-    }
-
-    /// Calculate and return the total ability scores
-    ///
-    /// Example:
-    /// ```
-    /// use role4me_lib::ed_5::{self, AP};
-    ///
-    /// let mut player = ed_5::Character::build();
-    ///
-    /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_point(AP::INT);
-    ///
-    /// let val = player.check_all_scores();
-    ///
-    /// assert_eq!(val, [0,0,0,1,0,0]);
-    /// ```
-    pub fn check_all_scores(&self) -> [usize; 6] {
-        let mut ability_scores = [0,0,0,0,0,0];
-        self.calculate_race_default(&mut ability_scores);
-        self.calculate_race_user(&mut ability_scores);
-        self.calculate_base_ap(&mut ability_scores);
-        ability_scores
     }
 
     /// Assign language manually from race when applicable
     ///
     /// Example:
     /// ```
-    /// use role4me_lib::ed_5::{self, Language};
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
     ///
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_lang(Language::Elven);
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_lang(Language::Elven);
     ///
-    /// assert!(player.known_lang().contains(&Language::Elven));
+    /// assert!(player.get_all_lang().contains(&Language::Elven));
     /// ```
-    pub fn use_race_lang(&mut self, language: Language) -> &mut Self {
+    pub fn race_use_lang(&mut self, language: Language) -> &mut Self {
         if (!self.lang.contains(&language)) & (self.lang_point > 0) {
             if self.race_used_lang.insert(language) {
                 self.init_race_lang();
@@ -236,21 +196,22 @@ impl<'a> Character<'a> {
     ///
     /// Example:
     /// ```
-    /// use role4me_lib::ed_5::{self, Language};
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
     ///
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_lang(Language::Elven);
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_lang(Language::Elven);
     ///
-    /// assert!(player.known_lang().contains(&Language::Elven));
+    /// assert!(player.get_all_lang().contains(&Language::Elven));
     ///
-    /// player.remove_race_lang(Language::Elven);
+    /// player.race_remove_lang(Language::Elven);
     ///
-    /// assert!(!player.known_lang().contains(&Language::Elven));
+    /// assert!(!player.get_all_lang().contains(&Language::Elven));
     /// ```
-    pub fn remove_race_lang(&mut self, language: Language) -> &mut Self {
+    pub fn race_remove_lang(&mut self, language: Language) -> &mut Self {
         if self.race_used_lang.remove(&language) {
             self.init_race_lang();
         }
@@ -261,45 +222,25 @@ impl<'a> Character<'a> {
     ///
     /// Example:
     /// ```
-    /// use role4me_lib::ed_5::{self, Language};
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
     ///
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .select_race(ed_5::Human::Variant)
-    ///     .use_race_lang(Language::Elven);
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_lang(Language::Elven);
     ///
-    /// assert!(player.known_lang().contains(&Language::Elven));
+    /// assert!(player.get_all_lang().contains(&Language::Elven));
     ///
-    /// player.clear_race_langs();
+    /// player.race_clear_lang();
     ///
-    /// assert!(!player.known_lang().contains(&Language::Elven));
+    /// assert!(!player.get_all_lang().contains(&Language::Elven));
     /// ```
-    pub fn clear_race_langs(&mut self) -> &mut Self {
+    pub fn race_clear_lang(&mut self) -> &mut Self {
         self.race_used_lang = HashSet::new();
         self.init_race_lang();
         self
-    }
-
-    /// Return HashSet of known languages
-    ///
-    /// Example:
-    /// ```
-    /// use role4me_lib::ed_5::{self, Language};
-    /// use std::collections::HashSet;
-    ///
-    /// let mut player = ed_5::Character::build();
-    ///
-    /// player.select_race(ed_5::Elf::Sea);
-    ///
-    /// assert_eq!(player.known_lang(), &HashSet::from([
-    ///     Language::Aquan,
-    ///     Language::Common,
-    ///     Language::Elven
-    /// ]))
-    /// ```
-    pub fn known_lang(&mut self) -> &HashSet<Language> {
-        &self.lang
     }
 
     /// Use roll method to generate base stat
@@ -310,15 +251,15 @@ impl<'a> Character<'a> {
     ///
     /// let mut player = ed_5::Character::build();
     ///
-    /// player.use_dice_roll();
+    /// player.ap_dice_roll();
     /// ```
-    pub fn use_dice_roll(&mut self) -> &mut Self {
+    pub fn ap_dice_roll(&mut self) -> &mut Self {
         self.ap_unassigned = dice::roll();
         self
     }
 
     /// Use Standard Array for base stat
-    /// Follow up of assign_ap_seq() method required 
+    /// Follow up of ap_assign_seq() method required 
     ///
     /// Example:
     /// ```
@@ -326,17 +267,17 @@ impl<'a> Character<'a> {
     ///
     /// let mut player = ed_5::Character::build();
     ///
-    /// player.use_standard_array();
+    /// player.ap_standard_array();
     ///
     /// assert_eq!(player.get_ap_unassigned(), &[15,14,13,12,10,8]);
     /// ```
-    pub fn use_standard_array(&mut self) -> &mut Self {
+    pub fn ap_standard_array(&mut self) -> &mut Self {
         self.ap_unassigned = [15,14,13,12,10,8];
         self
     }
 
     /// Use Heroic Array for base stat
-    /// Follow up of assign_ap_seq() method required 
+    /// Follow up of ap_assign_seq() method required 
     ///
     /// Example:
     /// ```
@@ -344,11 +285,11 @@ impl<'a> Character<'a> {
     ///
     /// let mut player = ed_5::Character::build();
     ///
-    /// player.use_heroic_array();
+    /// player.ap_heroic_array();
     ///
     /// assert_eq!(player.get_ap_unassigned(), &[17,16,14,14,12,10]);
     /// ```
-    pub fn use_heroic_array(&mut self) -> &mut Self {
+    pub fn ap_heroic_array(&mut self) -> &mut Self {
         self.ap_unassigned = [17,16,14,14,12,10];
         self
     }
@@ -361,22 +302,22 @@ impl<'a> Character<'a> {
     ///
     /// let mut player = ed_5::Character::build();
     ///
-    /// player.use_point_buy([8,13,14,15,12,10]);
+    /// player.ap_point_buy([8,13,14,15,12,10]);
     ///
-    /// assert_eq!(player.check_all_scores(), [8,13,14,15,12,10]);
+    /// assert_eq!(player.get_all_ability_score(), [8,13,14,15,12,10]);
     /// ```
-    pub fn use_point_buy(&mut self, points: [usize; 6]) -> &mut Self {
+    pub fn ap_point_buy(&mut self, points: [usize; 6]) -> &mut Self {
         for point in points {
             if !(point >= 8) | !(point <= 15) {
                 return self
             }
         }
         self.ap_unassigned = points;
-        self.assign_ap_seq([0,1,2,3,4,5]);
+        self.ap_assign_seq([0,1,2,3,4,5]);
         self
     }
 
-    /// Return the remainder as Result
+    /// Return the remainder from point buy if applicable
     /// Error returns a string that can be printed
     /// for debugging
     ///
@@ -387,17 +328,17 @@ impl<'a> Character<'a> {
     /// let mut player = ed_5::Character::build();
     ///
     /// assert_eq!(
-    /// player.check_point_buy([8,13,14,15,12,10]), Ok(0) 
+    /// player.ap_check_point_buy([8,13,14,15,12,10]), Ok(0) 
     /// );
     ///
     /// assert_eq!(
-    /// player.check_point_buy([10,10,10,10,10,10]), Ok(15)
+    /// player.ap_check_point_buy([10,10,10,10,10,10]), Ok(15)
     /// );
     /// ```
     /// -----------------------------------------------------
     /// Refer to D&D rules for more information
     /// regarding point buy.
-    pub fn check_point_buy(&mut self, points: [usize; 6]) -> Result<usize, String> {
+    pub fn ap_check_point_buy(&mut self, points: [usize; 6]) -> Result<usize, String> {
         let mut sum: usize = 0;
         for point in points {
             // Check if point within rule's limit
@@ -422,23 +363,6 @@ impl<'a> Character<'a> {
         }
     }
 
-    /// Return a rolled stat array
-    ///
-    /// Example:
-    /// ```
-    /// use role4me_lib::ed_5;
-    ///
-    /// let mut player = ed_5::Character::build();
-    ///
-    /// player.use_standard_array();
-    ///
-    /// println!("{:?}", player.get_ap_unassigned());
-    /// assert_eq!(player.get_ap_unassigned(), &[15,14,13,12,10,8]);
-    /// ```
-    pub fn get_ap_unassigned(&self) -> &[usize; 6] {
-        &self.ap_unassigned
-    }
-
     /// Assign sequence to rolled stat
     /// Important:
     /// Value must start from 0, and ends at 5
@@ -450,14 +374,14 @@ impl<'a> Character<'a> {
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .use_dice_roll()
-    ///     .assign_ap_seq([2,1,3,5,4,0]);
+    ///     .ap_dice_roll()
+    ///     .ap_assign_seq([2,1,3,5,4,0]);
     /// ```
     /// ---------------------------------------
     /// From the above example
     /// If rolled stat is [2,4,6,8,10,12]
     /// Rolled stat will be [12,4,2,6,10,8]
-    pub fn assign_ap_seq(&mut self, sequence: [usize; 6])
+    pub fn ap_assign_seq(&mut self, sequence: [usize; 6])
         -> &mut Self {
         let mut set = BTreeSet::new();
         for val in sequence {
@@ -477,19 +401,131 @@ impl<'a> Character<'a> {
         self.init_base_ap()
     }
 
+    /// Return refernce to value of assignable ability
+    /// score gained from certain race
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// player.race_select(ed_5::Human::Variant);
+    ///
+    /// assert_eq!(player.get_race_unused_ap(), &2);
+    ///
+    /// player.race_use_ap(AP::STR);
+    ///
+    /// assert_eq!(player.get_race_unused_ap(), &1);
+    /// ```
+    pub fn get_race_unused_ap(&self) -> &usize {
+        &self.race_usable_ap
+    }
+
+    /// Return value of specific ability score from
+    /// the final/total caculated ability scores
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// player
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_ap(AP::INT);
+    ///
+    /// let val = player.get_ability_score(AP::INT);
+    ///
+    /// assert_eq!(val, 1);
+    /// ```
+    pub fn get_ability_score(&self, ap: AP) -> usize {
+        let scores = self.get_all_ability_score();
+        scores[ap.get_index()]
+    }
+
+    /// Calculate and return the total ability scores
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// player
+    ///     .race_select(ed_5::Human::Variant)
+    ///     .race_use_ap(AP::INT);
+    ///
+    /// let val = player.get_all_ability_score();
+    ///
+    /// assert_eq!(val, [0,0,0,1,0,0]);
+    /// ```
+    pub fn get_all_ability_score(&self) -> [usize; 6] {
+        let mut ability_scores = [0,0,0,0,0,0];
+        self.calculate_race_default(&mut ability_scores);
+        self.calculate_race_user(&mut ability_scores);
+        self.calculate_base_ap(&mut ability_scores);
+        ability_scores
+    }
+
+    /// Return reference to a HashSet of known languages
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    /// use std::collections::HashSet;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// player.race_select(ed_5::Elf::Sea);
+    ///
+    /// assert_eq!(player.get_all_lang(), &HashSet::from([
+    ///     Language::Aquan,
+    ///     Language::Common,
+    ///     Language::Elven
+    /// ]))
+    /// ```
+    pub fn get_all_lang(&self) -> &HashSet<Language> {
+        &self.lang
+    }
+
+    /// Return reference to array of current ap stat 
+    /// without/bofore applying seqeunce
+    /// (Refer to ap_assign_seq() method)
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// player.ap_standard_array();
+    ///
+    /// println!("{:?}", player.get_ap_unassigned());
+    /// assert_eq!(player.get_ap_unassigned(), &[15,14,13,12,10,8]);
+    /// ```
+    pub fn get_ap_unassigned(&self) -> &[usize; 6] {
+        &self.ap_unassigned
+    }
+
     /// Print debug information
     /// Ends with empty line
     ///
     /// Example:
     /// ```
-    /// use role4me_lib::ed_5::{self, AP};
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
     ///
     /// let mut player = ed_5::Character::build();
     ///
     /// player
-    ///     .select_race(ed_5::Human::Variant)
+    ///     .race_select(ed_5::Human::Variant)
     ///     .print_debug()
-    ///     .use_race_point(AP::INT)
+    ///     .race_use_ap(AP::INT)
     ///     .print_debug();
     /// ```
     /// ----------------------------------------
@@ -636,7 +672,7 @@ impl<'a> Character<'a> {
 
 impl<'a> Debug for Character<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut scores = self.check_all_scores();
+        let mut scores = self.get_all_ability_score();
         let mut score = scores.iter_mut();
         let seq_error;
         if let Err(e) = &self.ap_seq {
@@ -659,12 +695,9 @@ impl<'a> Debug for Character<'a> {
             Size: {:?}\n\
             \n{}",
             self.edition.as_string(),
-            score.next().unwrap(),
-            score.next().unwrap(),
-            score.next().unwrap(),
-            score.next().unwrap(),
-            score.next().unwrap(),
-            score.next().unwrap(),
+            score.next().unwrap(), score.next().unwrap(),
+            score.next().unwrap(), score.next().unwrap(),
+            score.next().unwrap(), score.next().unwrap(),
             self.race.as_string(),
             self.race_usable_ap,
             self.lang_point,
