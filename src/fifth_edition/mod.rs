@@ -1,15 +1,17 @@
 #![allow(dead_code)]
 pub mod race;
-mod class;
+pub mod class;
 mod tests;
 
 use std::{collections::{BTreeSet, HashSet}, fmt::Debug};
 use crate::common::{AP, Edition, Race, Stat, Size, dice};
 use crate::common::profeciency::{Language, Weapon, Armor, Skill};
 use race::*;
+use class::Class;
 
 pub struct Character<'a> {
     edition: Edition,
+    class: Class,
     race: Box<dyn Race + 'a>,
     race_usable_ap: usize,
     race_used_ability: HashSet<AP>,
@@ -42,6 +44,7 @@ impl<'a> Character<'a> {
     pub fn build() -> Character<'a> {
         Character {
             edition: Edition::FifithEdition,
+            class: Class::Unknown,
             race: Box::new(Unknown::Unknown),
             race_usable_ap: 0,
             race_used_ability: HashSet::new(),
@@ -52,7 +55,7 @@ impl<'a> Character<'a> {
             armor: HashSet::new(),
             skill: HashSet::new(),
             ap_unassigned: [0,0,0,0,0,0],
-            ap_seq: Err("No value".to_string()),
+            ap_seq: Err("Error: No sequence assigned".to_string()),
             base_ap: [0,0,0,0,0,0],
             speed: 0,
             size: Size::Unknown,
@@ -69,6 +72,8 @@ impl<'a> Character<'a> {
     /// let mut player = ed_5::Character::build();
     ///
     /// player.race_select(ed_5::Human::Variant);
+    ///
+    /// assert_eq!(player.get_race(), "Human(Variant)".to_string());
     /// ```
     /// ------------------------------------------------
     /// Refer to `role4me_lib::ed_5::race` for race enums
@@ -255,6 +260,8 @@ impl<'a> Character<'a> {
     /// ```
     pub fn ap_dice_roll(&mut self) -> &mut Self {
         self.ap_unassigned = dice::roll();
+        // Reset ap_seq
+        self.ap_seq = Err("Error: No sequence assigned".to_string());
         self
     }
 
@@ -273,6 +280,8 @@ impl<'a> Character<'a> {
     /// ```
     pub fn ap_standard_array(&mut self) -> &mut Self {
         self.ap_unassigned = [15,14,13,12,10,8];
+        // Reset ap_seq
+        self.ap_seq = Err("Error: No sequence assigned".to_string());
         self
     }
 
@@ -291,6 +300,8 @@ impl<'a> Character<'a> {
     /// ```
     pub fn ap_heroic_array(&mut self) -> &mut Self {
         self.ap_unassigned = [17,16,14,14,12,10];
+        // Reset ap_seq
+        self.ap_seq = Err("Error: No sequence assigned".to_string());
         self
     }
 
@@ -314,6 +325,8 @@ impl<'a> Character<'a> {
         }
         self.ap_unassigned = points;
         self.ap_assign_seq([0,1,2,3,4,5]);
+        // Reset ap_seq
+        self.ap_seq = Err("Error: No sequence assigned".to_string());
         self
     }
 
@@ -399,6 +412,39 @@ impl<'a> Character<'a> {
                 );
         }
         self.init_base_ap()
+    }
+
+    /// Select/Change character class
+    ///
+    /// Example: 
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// player.class_select(ed_5::Class::Cleric);
+    ///
+    /// assert_eq!(player.get_class(), &ed_5::Class::Cleric);
+    /// ```
+    pub fn class_select(&mut self, class: Class) -> &mut Self {
+        self.class = class;
+        self
+    }
+
+    /// Return race name as String
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// assert_eq!(player.get_race(), "Unknown(Unknown)".to_string());
+    /// ```
+    pub fn get_race(&self) -> String {
+        self.race.as_string()
     }
 
     /// Return refernce to value of assignable ability
@@ -510,6 +556,54 @@ impl<'a> Character<'a> {
     /// ```
     pub fn get_ap_unassigned(&self) -> &[usize; 6] {
         &self.ap_unassigned
+    }
+
+    /// Return assigned ap sequence when applicable
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// player.race_select(ed_5::Human::Variant)
+    ///     .ap_standard_array()
+    ///     .ap_assign_seq([0,1,2,3,4,5]);
+    /// 
+    /// assert_eq!(player.get_ap_seq(), Ok([0,1,2,3,4,5]));
+    /// ```
+    pub fn get_ap_seq(&self) -> Result<[usize; 6], &str> {
+        match &self.ap_seq {
+            Ok(seq) => {
+                let mut val = seq.iter();
+                let ap_seq_array = [
+                    val.next().unwrap().clone(),
+                    val.next().unwrap().clone(),
+                    val.next().unwrap().clone(),
+                    val.next().unwrap().clone(),
+                    val.next().unwrap().clone(),
+                    val.next().unwrap().clone(),
+                ];
+                Ok(ap_seq_array)
+            }
+            Err(_) => Err("Error: No usable sequence found")
+        }
+    }
+
+    /// Return class name as String
+    ///
+    /// Example:
+    /// ```
+    /// use role4me_lib::ed_5;
+    /// use role4me_lib::prelude::*;
+    ///
+    /// let mut player = ed_5::Character::build();
+    ///
+    /// assert_eq!(player.get_class(), &ed_5::Class::Unknown);
+    /// ```
+    pub fn get_class(&self) -> &Class {
+        &self.class
     }
 
     /// Print debug information
@@ -684,29 +778,32 @@ impl<'a> Debug for Character<'a> {
         write!(f, "Edition: {}\n\
             STR DEX CON INT WIS CHA\n\
             [{}] [{}] [{}] [{}] [{}] [{}]\n\
+            Class: \t{:?}\n\
             Race: \t{}\n\
+            Languages: {:?}\n\
+            Weapons:   {:?}\n\
+            Armor: \t{:?}\n\
+            Skills: {:?}\n\
+            Speed: \t{:?}\n\
+            Size: \t{:?}\n\
             AP: \t{}\n\
             LP: \t{}\n\
-            Languages: {:?}\n\
-            Weapons: {:?}\n\
-            Armor: {:?}\n\
-            Skills: {:?}\n\
-            Speed: {:?}\n\
-            Size: {:?}\n\
-            \n{}",
+            \n{}
+            ",
             self.edition.as_string(),
             score.next().unwrap(), score.next().unwrap(),
             score.next().unwrap(), score.next().unwrap(),
             score.next().unwrap(), score.next().unwrap(),
+            self.class,
             self.race.as_string(),
-            self.race_usable_ap,
-            self.lang_point,
             self.lang,
             self.weap,
             self.armor,
             self.skill,
             self.speed,
             self.size,
+            self.race_usable_ap,
+            self.lang_point,
             seq_error)
     }
 }

@@ -9,4 +9,5 @@ pub mod prelude {
 pub mod ed_5 {
     pub use crate::fifth_edition::Character;
     pub use crate::fifth_edition::race::*;
+    pub use crate::fifth_edition::class::Class;
 }

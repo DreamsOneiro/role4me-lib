@@ -134,3 +134,28 @@ fn test_no_race() {
     assert_eq!(player.race_used_ability, HashSet::new());
     assert_eq!(player.get_all_lang(), &HashSet::new());
 }
+
+#[test]
+fn test_ap_sequence() {
+    let mut player = Character::build();
+
+    // Baseline
+    player.race_select(Human::Variant)
+        .ap_standard_array()
+        .ap_assign_seq([0,1,2,3,4,5]);
+
+    assert_eq!(player.get_all_ability_score(), [15,14,13,12,10,8]);
+
+    // Ensure previously assigned sequence not affecting 
+    // point buy after switching ap assign method
+    player.ap_point_buy([8,13,14,15,12,10]);
+
+    assert_eq!(player.get_all_ability_score(), [8,13,14,15,12,10]);
+
+    // Ensure that changing ap assign method reset ap_seq
+    player.ap_standard_array();
+
+    if let Ok(_) = player.get_ap_seq() {
+        panic!("Error: Expected Err, got Ok(_)");
+    }
+}

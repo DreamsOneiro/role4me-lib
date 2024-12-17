@@ -12,6 +12,7 @@ macro_rules! create_class {
         saving_throws: $saving_throws:expr,
         skill: $skill:expr
     }),*) => {
+        #[derive(Eq, PartialEq, Debug)]
         pub enum Class {
             $($class,)*
         }
@@ -109,5 +110,13 @@ create_class!(
             AnimalHandling, Athletics, Insight, Investigation,
             Nature, Perception, Stealth, Survial
         ]
+    },
+
+    Unknown {
+        armor: vec![],
+        weapon: vec![],
+        tools: vec![],
+        saving_throws: vec![],
+        skill: vec![]
     }
 );
