@@ -10,7 +10,8 @@ macro_rules! create_class {
         weapon: $weapon:expr,
         tools: $tools:expr,
         saving_throws: $saving_throws:expr,
-        skill: $skill:expr
+        skill: $skill:expr,
+        prof_point: $prof_point:expr
     }),*) => {
         #[derive(Eq, PartialEq, Debug)]
         pub enum Class {
@@ -57,6 +58,14 @@ macro_rules! create_class {
                     )*
                 }
             }
+
+            fn get_prof_point(&self) -> usize {
+                match self {
+                    $(
+                        Class::$class => $prof_point,
+                    )*
+                }
+            }
         }
     };
 }
@@ -89,7 +98,8 @@ create_class!(
         ],
         tools: vec![],
         saving_throws: vec![AP::WIS, AP::CHA],
-        skill: vec![History, Insight, Medicine, Persuasion, Religion]
+        skill: vec![History, Insight, Medicine, Persuasion, Religion],
+        prof_point: 2
     },
 
     Ranger {
@@ -109,7 +119,8 @@ create_class!(
         skill: vec![
             AnimalHandling, Athletics, Insight, Investigation,
             Nature, Perception, Stealth, Survial
-        ]
+        ],
+        prof_point: 3
     },
 
     Unknown {
@@ -117,6 +128,7 @@ create_class!(
         weapon: vec![],
         tools: vec![],
         saving_throws: vec![],
-        skill: vec![]
+        skill: vec![],
+        prof_point: 0
     }
 );
