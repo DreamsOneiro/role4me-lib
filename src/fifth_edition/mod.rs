@@ -117,7 +117,8 @@ impl<'a> Character<'a> {
     /// ```
     pub fn race_use_ap(&mut self, ability: AP) -> &mut Self {
         if self.race_usable_ap > 0 {
-            if self.race_used_ability.insert(ability) {
+            let try_insert = self.race_used_ability.insert(ability);
+            if try_insert {
                 self.init_race_ap();
             }
         }
@@ -189,8 +190,9 @@ impl<'a> Character<'a> {
     /// assert!(player.get_all_lang().contains(&Language::Elven));
     /// ```
     pub fn race_use_lang(&mut self, language: Language) -> &mut Self {
-        if (!self.lang.contains(&language)) & (self.lang_point > 0) {
-            if self.race_used_lang.insert(language) {
+        if !(self.lang.contains(&language)) && (self.lang_point > 0) {
+            let try_insert = self.race_used_lang.insert(language);
+            if try_insert {
                 self.init_race_lang();
             }
         }
@@ -319,7 +321,7 @@ impl<'a> Character<'a> {
     /// ```
     pub fn ap_point_buy(&mut self, points: [usize; 6]) -> &mut Self {
         for point in points {
-            if !(point >= 8) | !(point <= 15) {
+            if !(8..=15).contains(&point) {
                 return self
             }
         }
@@ -355,15 +357,15 @@ impl<'a> Character<'a> {
         let mut sum: usize = 0;
         for point in points {
             // Check if point within rule's limit
-            if (point >= 8) & (point <= 15) {
+            if (8..=15).contains(&point) {
                 let x = point - 8;
                 let b = (x-(x%5))/5; // Match magic, try big brain it yourself
                 sum += x + (b * x%5);
                 println!("{}", x + (b * x%5));
             }
             else {
-                return Err(String::from(format!("Error: Point must be within 8 & 15\n\
-                            Current input: {:?}", points)));
+                return Err(format!("Error: Point must be within 8 & 15\n\
+                            Current input: {:?}", points));
             }
         }
         println!("{:?}", points);
@@ -371,8 +373,8 @@ impl<'a> Character<'a> {
             Ok(27-sum)
         }
         else {
-            Err(String::from(format!("Error: Points sum exceeded limit, \
-                    Limit: 27 Assigned: {}", sum)))
+            Err(format!("Error: Points sum exceeded limit, \
+                    Limit: 27 Assigned: {}", sum))
         }
     }
 
@@ -578,12 +580,12 @@ impl<'a> Character<'a> {
             Ok(seq) => {
                 let mut val = seq.iter();
                 let ap_seq_array = [
-                    val.next().unwrap().clone(),
-                    val.next().unwrap().clone(),
-                    val.next().unwrap().clone(),
-                    val.next().unwrap().clone(),
-                    val.next().unwrap().clone(),
-                    val.next().unwrap().clone(),
+                    *val.next().unwrap(),
+                    *val.next().unwrap(),
+                    *val.next().unwrap(),
+                    *val.next().unwrap(),
+                    *val.next().unwrap(),
+                    *val.next().unwrap(),
                 ];
                 Ok(ap_seq_array)
             }
@@ -635,7 +637,7 @@ impl<'a> Character<'a> {
        ----------- */
     // Calculate points assigned from race by default
     fn calculate_race_default(&self, ability_scores: &mut [usize; 6]) {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             let mut race_ap = buff_ptr.ap.iter();
             for score in ability_scores {
@@ -676,7 +678,7 @@ impl<'a> Character<'a> {
 
     /// Initialise race ap
     fn init_race_ap(&mut self) -> &mut Self {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             self.race_usable_ap = buff_ptr.ap[6] - self.race_used_ability.len();
         }
@@ -685,7 +687,7 @@ impl<'a> Character<'a> {
 
     // Initialise race languages
     fn init_race_lang(&mut self) -> &mut Self {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             // Clear all languages
             self.lang = HashSet::new();
@@ -705,7 +707,7 @@ impl<'a> Character<'a> {
 
     // Intialise weapons
     fn init_race_weap(&mut self) -> &mut Self {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             // Clear all weapons
             self.weap = HashSet::new();
@@ -719,7 +721,7 @@ impl<'a> Character<'a> {
 
     // Intialise armor
     fn init_race_armor(&mut self) -> &mut Self {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             // Clear all weapons
             self.armor = HashSet::new();
@@ -733,7 +735,7 @@ impl<'a> Character<'a> {
 
     // Initialise skills
     fn init_race_skill(&mut self) -> &mut Self {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             // Clear all skills
             self.skill = HashSet::new();
@@ -747,7 +749,7 @@ impl<'a> Character<'a> {
 
     // Initialize speed
     fn init_speed(&mut self) -> &mut Self {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             self.speed = buff_ptr.speed;
         }
@@ -756,7 +758,7 @@ impl<'a> Character<'a> {
 
     // Initialize size
     fn init_size(&mut self) -> &mut Self {
-        if self.buffer_race != None {
+        if self.buffer_race.is_some() {
             let buff_ptr = &self.buffer_race.as_ref().unwrap();
             self.size = buff_ptr.size.clone();
         }
@@ -764,7 +766,7 @@ impl<'a> Character<'a> {
     }
 }
 
-impl<'a> Debug for Character<'a> {
+impl Debug for Character<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut scores = self.get_all_ability_score();
         let mut score = scores.iter_mut();
