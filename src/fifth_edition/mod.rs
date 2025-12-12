@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 pub mod race;
 pub mod class;
+pub mod traits;
 mod tests;
 
 use std::{collections::{BTreeSet, HashSet}, fmt::Debug};
