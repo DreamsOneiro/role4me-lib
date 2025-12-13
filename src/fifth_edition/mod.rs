@@ -7,15 +7,15 @@ use crate::common::Edition;
 use class::Class;
 use race::{Race, Races};
 
-pub struct Character<'a> {
+pub struct Character {
     edition: Edition,
     class: Class,
-    race: Race<'a>,
+    race: Race,
     base_ap: [usize; 6],
 }
 
-impl<'a> Character<'a> {
-    pub fn new() -> Character<'a> {
+impl Character {
+    pub fn new() -> Character {
         Character {
             edition: Edition::FifithEdition,
             class: Class::Undefined,
@@ -24,11 +24,13 @@ impl<'a> Character<'a> {
         }
     }
 
-    pub fn race_select<T: Races + 'a>(&mut self, race: T) {
+    pub fn race_select<T: Races + 'static>(mut self, race: T) -> Character {
         self.race.race_change(race);
+        self
     }
 
-    pub fn dbg(&self) {
+    pub fn dbg(self) -> Character {
         println!("{:?}", &self.race);
+        self
     }
 }

@@ -71,8 +71,8 @@ pub trait Races {
 /* ----------
    | Struct |
    ---------- */
-pub struct Race<'a> {
-    race: Box<dyn Races + 'a>,
+pub struct Race {
+    race: Box<dyn Races>,
     ap: [u8; 7],
     lp: u8,
     lang: Vec<Language>,
@@ -83,7 +83,7 @@ pub struct Race<'a> {
     size: Size
 }
 
-impl<'a> Race<'a> {
+impl Race {
     pub fn new() -> Self {
         Race {
             race: Box::new(Unknown::Unknown),
@@ -107,23 +107,23 @@ impl<'a> Race<'a> {
         self.reset();
     }
 
-    pub fn race_change<T: Races + 'a>(&mut self, new_race: T) {
+    pub fn race_change<T: Races + 'static>(&mut self, new_race: T) {
         self.race = Box::new(new_race);
         self.reset();
     }
 }
 
-impl<'a> fmt::Debug for Race<'a> {
+impl fmt::Debug for Race {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Race")
             .field("Race", &self.race.as_string())
-            .field("AP", &self.ap)
-            .field("Laguage Point", &self.lp)
-            .field("Language", &self.lang)
-            .field("Weapon", &self.weap)
-            .field("Armor", &self.armor)
-            .field("Skill", &self.skill)
-            .field("Speed", &self.speed)
+            .field("\nAP", &self.ap)
+            .field("\nLaguage Point", &self.lp)
+            .field("\nLanguage", &self.lang)
+            .field("\nWeapon", &self.weap)
+            .field("\nArmor", &self.armor)
+            .field("\nSkill", &self.skill)
+            .field("\nSpeed", &self.speed)
             .finish()
     }
 }
