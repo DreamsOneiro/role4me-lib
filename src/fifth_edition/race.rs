@@ -1,5 +1,5 @@
 use crate::common::{Size, first_letter_uppercase};
-use crate::common::profeciency::{Armor, Language::{self, *}, Skill::{self, *}, Weapon::{self, *}};
+use crate::common::profeciency::{self, Armor, Language::*, Skill::*, Weapon::*};
 use std::fmt;
 
 /* ---------
@@ -7,7 +7,8 @@ use std::fmt;
    --------- */
 macro_rules! new_race {
     ($name:ident, $($sub_name:ident{
-        ap: $ap:expr,
+        fixed_ap: $fixed_ap:expr,
+        free_ap: $free_ap:expr,
         lp: $lang_point:expr, 
         lang: $lang:expr, 
         weap: $weap:expr,
@@ -42,7 +43,8 @@ macro_rules! new_race {
                     $(
                         Self::$sub_name => Race {
                             race: Box::new(Self::$sub_name),
-                            ap: $ap, 
+                            fixed_ap: $fixed_ap, 
+                            free_ap: $free_ap,
                             lp: $lang_point,
                             lang: $lang,
                             weap: $weap,
@@ -73,12 +75,13 @@ pub trait Races {
    ---------- */
 pub struct Race {
     race: Box<dyn Races>,
-    ap: [u8; 7],
+    fixed_ap: [u8; 6],
+    free_ap: u8,
     lp: u8,
-    lang: Vec<Language>,
-    weap: Vec<Weapon>,
-    armor: Vec<Armor>,
-    skill: Vec<Skill>,
+    lang: Vec<profeciency::Language>,
+    weap: Vec<profeciency::Weapon>,
+    armor: Vec<profeciency::Armor>,
+    skill: Vec<profeciency::Skill>,
     speed: u8,
     size: Size
 }
@@ -87,7 +90,8 @@ impl Race {
     pub fn new() -> Self {
         Race {
             race: Box::new(Unknown::Unknown),
-            ap: [0,0,0,0,0,0,0],
+            fixed_ap: [0,0,0,0,0,0],
+            free_ap: 0,
             lp: 0,
             lang: vec![],
             weap: vec![],
@@ -99,25 +103,37 @@ impl Race {
     }
 
     pub fn reset(&mut self) {
-        *self = self.race.get_stat();
-    }
-
-    pub fn reset_all(&mut self) {
         self.race = Box::new(Unknown::Unknown);
-        self.reset();
+        self.stat_regen();
     }
 
-    pub fn race_change<T: Races + 'static>(&mut self, new_race: T) {
+    pub fn change_race<T: Races + 'static>(&mut self, new_race: T) {
         self.race = Box::new(new_race);
         self.reset();
+    }
+
+    pub fn use_lp(&mut self, lang: profeciency::Language) -> bool {
+        if self.lp > 0 && !self.lang.contains(&lang) {
+            self.lang.push(lang.clone());
+            self.lp -= 1;
+            true
+        }
+        else {
+            false
+        }
+    }
+
+    fn stat_regen(&mut self) {
+        *self = self.race.get_stat();
     }
 }
 
 impl fmt::Debug for Race {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Race")
-            .field("Race", &self.race.as_string())
-            .field("\nAP", &self.ap)
+            .field("\nRace", &self.race.as_string())
+            .field("\nAP", &self.fixed_ap)
+            .field("\nAssignable AP", &self.free_ap)
             .field("\nLaguage Point", &self.lp)
             .field("\nLanguage", &self.lang)
             .field("\nWeapon", &self.weap)
@@ -134,7 +150,8 @@ impl fmt::Debug for Race {
 // No Race
 new_race!(Unknown,
     Unknown {
-        ap: [0,0,0,0,0,0,0],
+        fixed_ap: [0,0,0,0,0,0],
+        free_ap: 0,
         lp: 0,
         lang: vec![],
         weap: vec![],
@@ -148,7 +165,8 @@ new_race!(Unknown,
 // Human
 new_race!(Human,
     Basic {
-        ap: [1,1,1,1,1,1,0],
+        fixed_ap: [1,1,1,1,1,1],
+        free_ap: 0,
         lp: 1,
         lang: vec![Common],
         weap: vec![],
@@ -158,7 +176,8 @@ new_race!(Human,
         size: Size::Medium
     }
     Variant {
-        ap: [0,0,0,0,0,0,2],
+        fixed_ap: [0,0,0,0,0,0],
+        free_ap: 2,
         lp: 1,
         lang: vec![Common],
         weap: vec![],
@@ -172,7 +191,8 @@ new_race!(Human,
 // Elf
 new_race!(Elf,
     Drow {
-        ap: [0,2,0,0,0,1,0],
+        fixed_ap: [0,2,0,0,0,1],
+        free_ap: 0,
         lp: 0,
         lang: vec![Common, Elven],
         weap: vec![Rapier, Shortsword, HandCrossbow],
@@ -182,7 +202,8 @@ new_race!(Elf,
         size: Size::Medium
     }
     High {
-        ap: [0,2,0,1,0,0,0],
+        fixed_ap: [0,2,0,1,0,0],
+        free_ap: 0,
         lp: 1,
         lang: vec![Common, Elven],
         weap: vec![Longsword, Shortsword, Shortbow, Longbow],
@@ -192,7 +213,8 @@ new_race!(Elf,
         size: Size::Medium
     }
     Wood {
-        ap: [0,2,0,0,1,0,0],
+        fixed_ap: [0,2,0,0,1,0],
+        free_ap: 0,
         lp: 0,
         lang: vec![Common, Elven],
         weap: vec![Longsword, Shortsword, Shortbow, Longbow],
@@ -202,7 +224,8 @@ new_race!(Elf,
         size: Size::Medium
     }
     Sea {
-        ap: [0,2,1,0,0,0,0],
+        fixed_ap: [0,2,1,0,0,0],
+        free_ap: 0,
         lp: 0,
         lang: vec![Common, Elven, Aquan],
         weap: vec![Spear, Trident, LightCrossbow, Net],
@@ -216,7 +239,8 @@ new_race!(Elf,
 //Dwarf
 new_race!(Dwarf,
     Duegar {
-        ap: [1,0,2,0,0,0,0],
+        fixed_ap: [1,0,2,0,0,0],
+        free_ap: 0,
         lp: 0,
         lang: vec![Common, Dwarven, Undercommon],
         weap: vec![Battleaxe, Handaxe, LightHammer, Warhammer],
