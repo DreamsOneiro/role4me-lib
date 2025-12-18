@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 pub mod class;
-pub mod traits;
 pub mod race;
 pub mod background;
+pub mod feature;
 
-use crate::common::Edition;
+use crate::{common::Edition};
 use class::{Class, Classes};
 use race::{Race, Races};
-use background::Background;
+use background::{Background, Backgrounds};
 
 pub struct Character {
     edition: Edition,
@@ -23,7 +23,7 @@ impl Character {
             edition: Edition::FifithEdition,
             class: Class::new(),
             race: Race::new(),
-            bg: Background::Undefined,
+            bg: Background::new(),
             base_ap: None
         }
     }
@@ -44,9 +44,18 @@ impl Character {
         self.race.reset();
     }
 
+    pub fn bg_select(&mut self, bg: Backgrounds) {
+        self.bg.change_bg(bg);
+    }
+
+    pub fn bg_reset(&mut self) {
+        self.bg.reset();
+    }
+
     pub fn dbg(&self) {
         println!("{:?}\n", &self.race);
         println!("{:?}\n", &self.class);
+        println!("{:?}\n", &self.bg);
         println!("-----------------------------------");
     }
 }

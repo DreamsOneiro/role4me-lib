@@ -73,5 +73,6 @@ define_enum!(Armor {
 });
 
 define_enum!(Tools {
-    TheivesTools, TinkersTools
+    TheivesTools, TinkersTools, DisguiseKit,
+    ForgeryKit
 });
